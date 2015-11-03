@@ -96,6 +96,7 @@ class State:
         template = inside[1]
         if template not in [
             "nom",
+            "nom commun",
             "nom propre",
             "nom de famille",
             "prénom",
@@ -106,6 +107,7 @@ class State:
             "adjectif possessif",
             "adjectif démonstratif",
             "adjectif numéral",
+            "adjectif interrogatif",
             "adv",
             "adverbe",
             "adverbe interrogatif",
@@ -126,14 +128,17 @@ class State:
             "pronom démonstratif",
             "pronom possessif",
             "pronom interrogatif",
+            "onom",
             "onomatopée",
             "gentilés",
             "symbole",
             "préfixe",
             "suffixe",
+            "locution phrase",
             "locution-phrase",
             "conjonction de coordination"
         ]:
+            #TODO: actually a lot of them only appear in `====` sections
             if template in [
                 "étym",
                 "étymologie",
@@ -165,9 +170,9 @@ class State:
                 "trad",
                 "trad-trier",
                 "diminutifs",
-                "holonymes",
                 "homo",
                 "homophones",
+                "holonymes",
                 "paronymes",
                 "voir aussi",
                 "anagrammes"
@@ -322,6 +327,7 @@ class State:
         if (
             "{{t}}" in line or
             "{{t|nocat}}" in line or
+            "{{t|nocat=1}}" in line or
             "{{t|nocat=non}}" in line or
             "{{t|fr}}" in line or
             "{{transitif|fr}}" in line
@@ -332,6 +338,7 @@ class State:
         if (
             "{{i}}" in line or
             "{{i|nocat}}" in line or
+            "{{i|nocat=1}}" in line or
             "{{i|nocat=non}}" in line or
             "{{i|fr}" in line or
             "{{intrans|fr}}" in line or
@@ -349,6 +356,7 @@ class State:
 
         if (
             "{{tind|fr}}" in line or
+            "{{tr-indir|nocat=1}}" in line or
             "{{tr-indir|nocat}}" in line or
             "{{tr-indir}}" in line or
             "{{tr-indir|fr}}" in line or
