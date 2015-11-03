@@ -76,12 +76,12 @@ class State:
         self.step = self.lookForType
 
     def lookForType(self, line):
-        if '== {{langue|' in line:
+        if line.startswith('== {{langue|'):
             self.tryCreateWord()
             self.reset()
             return
 
-        if '=== {{S|' not in line or '}} ===' not in line:
+        if not line.startswith('=== {{S|'):
             return
 
         # extract from:
@@ -94,7 +94,112 @@ class State:
             return
 
         template = inside[1]
-        if template not in ["nom", "verbe", "adjectif"]:
+        if template not in [
+            "nom",
+            "nom propre",
+            "nom de famille",
+            "prénom",
+            "verbe",
+            "particule",
+            "adjectif",
+            "adj",
+            "adjectif possessif",
+            "adjectif démonstratif",
+            "adjectif numéral",
+            "adv",
+            "adverbe",
+            "adverbe interrogatif",
+            "adverbe relatif",
+            "interjection",
+            "prép",
+            "préposition",
+            "conjonction",
+            "article défini",
+            "article partitif",
+            "article indéfini",
+            "adjectif indéfini",
+            "lettre",
+            "pronom",
+            "pronom relatif",
+            "pronom indéfini",
+            "pronom personnel",
+            "pronom démonstratif",
+            "pronom possessif",
+            "pronom interrogatif",
+            "onomatopée",
+            "gentilés",
+            "symbole",
+            "préfixe",
+            "suffixe",
+            "locution-phrase",
+            "conjonction de coordination"
+        ]:
+            if template in [
+                "étym",
+                "étymologie",
+                "synonymes",
+                "Synonymes",
+                "expressions",
+                "apparentés",
+                "voir",
+                "notes",
+                "attestations",
+                "Traductions",
+                "traductions",
+                "pron",
+                "prononciation",
+                "faux-amis",
+                "références",
+                "note",
+                "réf",
+                "variantes",
+                "ant",
+                "antonymes",
+                " dérivés",
+                "dérivés",
+                "erreur",
+                "hypo",
+                "dimin",
+                "phrases",
+                "compos",
+                "trad",
+                "trad-trier",
+                "diminutifs",
+                "holonymes",
+                "homo",
+                "homophones",
+                "paronymes",
+                "voir aussi",
+                "anagrammes"
+                "abréviations",
+                "var",
+                "var-ortho",
+                "variantes dialectales",
+                "anagr",
+                "variantes ortho",
+                "variantes ortho", #not same
+                "traductions à trier",
+                "syn",
+                "hyperonymes",
+                "vocabulaire",
+                "anagrammes",
+                "composés",
+                "voc",
+                "variante typographique",
+                "variantes orthographiques",
+                "méronymes",
+                "dérivés autres langues",
+                "abréviations",
+                "quasi-synonymes",
+                "transcriptions",
+                "troponymes",
+                "hyponymes"
+            ]:
+                return
+            print(self.word)
+            print(template)
+            print(line)
+
             return
 
         if self.wordType is not None:
