@@ -1,23 +1,113 @@
+#!/bin/env python3
 # coding=utf-8
+from __future__ import print_function
+import copy
+import json
+import unicodedata
+import codecs
+import sys
 
 titleStart = len("    <title>")
 titleEnd = len("</title>\n")
 
+encoder = json.JSONEncoder()
 metaTitles = ["Wiktionnaire:", "Aide:", "Modèle:", "MediaWiki:"]
+
+# we use "compressed" keys for the json
+# which permit to decrease the output size from 200mo to 130mo
+LEMMA = 'l'
+TRANSITIVITY = 'trans'
+GROUP = 'gr'
+FLEXION = 'f'
+GENDER = "g"
+
+TENSE = "t"
+MODE = "m"
+PERSON = "p"
+NUMBER = "n"
+
+wordTypesToID = {
+    "nom" : 1,
+    "nom commun": 2,
+    "nom propre": 3,
+    "nom de famille": 4,
+    "prénom": 5,
+    "verbe": 6,
+    "particule": 7,
+    "adjectif": 8,
+    "adj": 8,
+    "adjectif possessif": 9,
+    "adjectif démonstratif": 10,
+    "adjectif numéral": 11,
+    "adjectif interrogatif": 12,
+    "adv": 13,
+    "adverbe": 13,
+    "adverbe interrogatif": 14,
+    "adverbe relatif": 15,
+    "interjection": 16,
+    "prép": 17,
+    "préposition": 17,
+    "conjonction": 18,
+    "conjonction de coordination": 19,
+    "article défini": 20,
+    "article partitif": 21,
+    "article indéfini": 22,
+    "adjectif indéfini": 23,
+    "lettre": 24,
+    "pronom": 25,
+    "pronom relatif": 26,
+    "pronom indéfini": 27,
+    "pronom personnel": 28,
+    "pronom démonstratif": 29,
+    "pronom possessif": 30,
+    "pronom interrogatif": 31,
+    "onom": 32,
+    "onomatopée": 33,
+    "gentilés": 34,
+    "symbole": 35,
+    "préfixe": 36,
+    "suffixe": 37,
+    "locution phrase": 38,
+    "locution-phrase": 38
+}
+validWordTypes = wordTypesToID.keys()
+
+def remove_accents(input_str):
+    if input_str is None:
+        return None
+    nkfd_form = unicodedata.normalize('NFKD', input_str)
+    return "".join([c for c in nkfd_form if not unicodedata.combining(c)])
+
 
 class CompleteWord:
     def __init__(self, lemma, lang, wordType, information):
         self.lemma = lemma
         self.lang = lang
         self.wordType = wordType
-        self.information = information
+        self.information = copy.deepcopy(information)
 
     def __str__(self):
-        base = "lemma: %s, lang: %s, type: %s [" % (self.lemma, self.lang, self.wordType)
+        base = "word: %s, lang: %s, type: %s [" % (self.lemma, self.lang, self.wordType)
         for key, value in self.information.iteritems():
             base += "%s => %s, " % (key, value)
         base += "]"
         return base
+
+    def toCSVLine(self):
+
+        normalizedLemma = remove_accents(self.lemma)
+        # no need to waste space by storing two times
+        # the same string (reduce size from 214mo to 200)
+        if normalizedLemma == self.lemma:
+            normalizedLemma = ""
+
+        return u"%s\t%s\t%d\t%s" % (
+            self.lemma,
+            normalizedLemma,
+            wordTypesToID[self.wordType],
+            encoder.encode(self.information)
+        )
+
 
 class State:
     def __init__(self):
@@ -60,7 +150,8 @@ class State:
             return
 
         title = line[titleStart:-titleEnd]
-        if len(filter(lambda x: x in title, metaTitles)) != 0:
+        if len([x for x in metaTitles if x in title]) != 0:
+        #if len(filter(lambda x: x in title, metaTitles)) != 0:
             return
 
         self.word = title
@@ -89,55 +180,9 @@ class State:
         # the array:
         # ["S", "nom", "fr", "flexion", "num=1"]
         inside = line.split("{{")[1].split("}}")[0].split("|")
-        if "flexion" in inside:
-            #TODO: manage flexion
-            return
 
         template = inside[1]
-        if template not in [
-            "nom",
-            "nom commun",
-            "nom propre",
-            "nom de famille",
-            "prénom",
-            "verbe",
-            "particule",
-            "adjectif",
-            "adj",
-            "adjectif possessif",
-            "adjectif démonstratif",
-            "adjectif numéral",
-            "adjectif interrogatif",
-            "adv",
-            "adverbe",
-            "adverbe interrogatif",
-            "adverbe relatif",
-            "interjection",
-            "prép",
-            "préposition",
-            "conjonction",
-            "article défini",
-            "article partitif",
-            "article indéfini",
-            "adjectif indéfini",
-            "lettre",
-            "pronom",
-            "pronom relatif",
-            "pronom indéfini",
-            "pronom personnel",
-            "pronom démonstratif",
-            "pronom possessif",
-            "pronom interrogatif",
-            "onom",
-            "onomatopée",
-            "gentilés",
-            "symbole",
-            "préfixe",
-            "suffixe",
-            "locution phrase",
-            "locution-phrase",
-            "conjonction de coordination"
-        ]:
+        if template not in validWordTypes:
             #TODO: actually a lot of them only appear in `====` sections
             if template in [
                 "étym",
@@ -201,9 +246,7 @@ class State:
                 "hyponymes"
             ]:
                 return
-            print(self.word)
-            print(template)
-            print(line)
+            #TODO: check for inconsistency in the template names
 
             return
 
@@ -213,6 +256,10 @@ class State:
 
         self.wordType = template
 
+        if "flexion" in inside:
+            self.step = self.lookForFlexion
+            return
+
         if self.wordType == "nom":
             self.step = self.lookForGender
             return
@@ -220,6 +267,187 @@ class State:
         if self.wordType == "verbe":
             self.step = self.lookForTransitivity
             return
+
+    def lookForFlexion(self, line):
+        if line.startswith('== {{') or line.startswith('=== {{'):
+            self.tryCreateWord()
+            self.reset()
+            return
+
+        if self.wordType == "nom" or self.wordType == "nom commun":
+            if not line.startswith("# ") or "[[" not in line or "''" not in line:
+                return
+            if "''Pluriel" in line:
+                inside = line.split("[[")[1].split("]]")[0].split("|")
+                self.information[LEMMA] = inside[-1];
+                self.information[FLEXION] = {NUMBER : 'p'}
+                return
+            if "''Féminin singulier" in line:
+                inside = line.split("[[")[1].split("]]")[0].split("|")
+                self.information[LEMMA] = inside[-1];
+                self.information[FLEXION] = {
+                    GENDER: 'f',
+                    NUMBER : 's'
+                }
+                return
+
+            if "''Masculin pluriel" in line:
+                inside = line.split("[[")[1].split("]]")[0].split("|")
+                self.information[LEMMA] = inside[-1];
+                self.information[FLEXION] = {
+                    GENDER: 'm',
+                    NUMBER: 'p'
+                }
+                return
+            if "''Féminin pluriel" in line:
+                inside = line.split("[[")[1].split("]]")[0].split("|")
+                self.information[LEMMA] = inside[-1];
+                self.information[FLEXION] = {
+                    GENDER: 'f',
+                    NUMBER: 'p'
+                }
+                return
+            if "''Féminin d" in line:
+                inside = line.split("[[")[1].split("]]")[0].split("|")
+                self.information[LEMMA] = inside[-1];
+                #TODO: check if we can correct witkionnary to put "Feminin singulier"
+                self.information[FLEXION] = {
+                    GENDER: 'f'
+                }
+                return
+
+            #
+            if "''Graphie souvent utilisée pour ''" in line:
+                return
+
+            #print(line)
+            return
+
+        if self.wordType == "verbe":
+            if not line.startswith("{{fr-verbe-flexion|"):
+                return
+            #TODO factorize
+            inside = line.split("{{")[1].split("}}")[0].split("|")
+
+            if "=" in inside[1]:
+                #TODO the infinitive is not the first argument
+                #     need to clean in the wiktionnary
+                return
+
+            self.information['inf'] = inside[1];
+
+            for form in inside[2:]:
+                if (
+                    FLEXION in self.information and
+                    len(self.information[FLEXION]) != 0
+                ):
+                    self.tryCreateWord()
+
+                self.information[FLEXION] = {}
+
+
+                if form == "pp=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "past"
+                    continue
+                if form == "ppf=oui" or form == "ppfs=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "past"
+                    self.information[FLEXION][GENDER] = "f"
+                    self.information[FLEXION][NUMBER] = "s"
+                    continue
+
+                if form == "ppfp=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "past"
+                    self.information[FLEXION][GENDER] = "f"
+                    self.information[FLEXION][NUMBER] = "p"
+                    continue
+
+                if form == "ppms=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "past"
+                    self.information[FLEXION][GENDER] = "m"
+                    self.information[FLEXION][NUMBER] = "s"
+                    continue
+
+                if form == "ppmp=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "past"
+                    self.information[FLEXION][GENDER] = "m"
+                    self.information[FLEXION][NUMBER] = "p"
+                    continue
+
+                if form == "ppr=oui":
+                    self.information[FLEXION][MODE] = "participe"
+                    self.information[FLEXION][TENSE] = "present"
+                    continue
+
+                if "." in form:
+                    formInfo = form.split('.')
+
+                    mode = formInfo[0]
+                    tense = formInfo[1]
+                    person = formInfo[2].split('=')[0]
+
+                    if mode == 'ind':
+                        self.information[FLEXION][MODE] = 'ind'
+                    if mode == 'imp':
+                        self.information[FLEXION][MODE] = 'imp'
+                    if mode == 'cond':
+                        self.information[FLEXION][MODE] = 'cond'
+                    if mode == 'sub':
+                        self.information[FLEXION][MODE] = 'sub'
+
+                    if tense == 'p':
+                        self.information[FLEXION][TENSE] = 'p'
+                    if tense == 'i':
+                        self.information[FLEXION][TENSE] = 'i'
+                    if tense == 'ps':
+                        self.information[FLEXION][TENSE] = 'ps'
+                    if tense == 'f':
+                        self.information[FLEXION][TENSE] = 'f'
+
+                    if person == "1s":
+                        self.information[FLEXION][PERSON] = '1'
+                        self.information[FLEXION][NUMBER] = 's'
+                    if person == "2s":
+                        self.information[FLEXION][PERSON] = '2'
+                        self.information[FLEXION][NUMBER] = 's'
+                    if person == "3s":
+                        self.information[FLEXION][PERSON] = '3'
+                        self.information[FLEXION][NUMBER] = 's'
+                    if person == "1p":
+                        self.information[FLEXION][PERSON] = '1'
+                        self.information[FLEXION][NUMBER] = 'p'
+                    if person == "2p":
+                        self.information[FLEXION][PERSON] = '2'
+                        self.information[FLEXION][NUMBER] = 'p'
+                    if person == "3p":
+                        self.information[FLEXION][PERSON] = '3'
+                        self.information[FLEXION][NUMBER] = 'p'
+
+                if form == "'=oui":
+                    #TODO we ignore elision
+                    continue
+                if form == "réfl=oui":
+                    #TODO we ignore reflection
+                    continue
+                if form == "impers=oui":
+                    #TODO we ignore impersonal form
+                    continue
+                if form == "'=oui":
+                    #TODO we ignore elision
+                    continue
+                if form.startswith("grp="):
+                    #TODO we ignore group
+                    continue
+
+                #TODO log: strange flexion
+                #if len(self.information["flexion"]) == 0:
+                #    print(self.word)
+                #    print(line)
+                #    print(form)
 
     def lookForGender(self, line):
         if not line.startswith("'''"+self.word+"'''"):
@@ -246,7 +474,7 @@ class State:
             "{{msing|fr}}" in line or
             "{{masculin}}" in line
         ):
-            self.information["gender"] = "m"
+            self.information[GENDER] = "m"
             return
 
         if (
@@ -258,14 +486,14 @@ class State:
             "{{fsing|fr}}" in line or
             "{{féminin}}" in line
         ):
-            self.information["gender"] = "f"
+            self.information[GENDER] = "f"
             return
         if (
             "{{mf" in line or
             "{{fm" in line or
             "{{masculin et féminin|" in line
         ):
-            self.information["gender"] = "mf"
+            self.information[GENDER] = "mf"
             return
 
         if (
@@ -279,11 +507,12 @@ class State:
         ):
             return
 
-        print("!!!!!!!woot!!!!!")
-        print(line)
+        #TODO: log, strange gender
+        #print("strange gender")
+        #print(line)
 
     def checkForGroup(self, line):
-        if '== {{langue|' in line:
+        if line.startswith('== {{langue|'):
             self.tryCreateWord()
             self.reset()
             return
@@ -299,18 +528,15 @@ class State:
             return
 
         if "grp=1" in line:
-            self.information["group"] = "1"
+            self.information[GROUP] = "1"
         if "grp=2" in line:
-            self.information["group"] = "2"
+            self.information[GROUP] = "2"
         if "grp=3" in line:
-            self.information["group"] = "3"
-
-
-
+            self.information[GROUP] = "3"
 
 
     def lookForTransitivity(self, line):
-        if '== {{langue|' in line:
+        if line.startswith('== {{langue|'):
             self.tryCreateWord()
             self.reset()
             return
@@ -332,7 +558,7 @@ class State:
             "{{t|fr}}" in line or
             "{{transitif|fr}}" in line
         ):
-            self.information["transitivity"] = "t"
+            self.information[TRANSITIVITY] = "t"
             return
 
         if (
@@ -344,14 +570,14 @@ class State:
             "{{intrans|fr}}" in line or
             "{{intransitif|fr}}" in line
         ):
-            self.information["transitivity"] = "i"
+            self.information[TRANSITIVITY] = "i"
             return
 
         if (
             "{{tr-dir}}" in line or
             "{{tr-dir|fr}}" in line
         ):
-            self.information["transitivity"] = "tr-dir"
+            self.information[TRANSITIVITY] = "tr-dir"
             return
 
         if (
@@ -362,7 +588,7 @@ class State:
             "{{tr-indir|fr}}" in line or
             "{{tr-ind|fr}}" in line
         ):
-            self.information["transitivity"] = "tr-indir"
+            self.information[TRANSITIVITY] = "tr-indir"
             return
 
         if (
@@ -371,8 +597,9 @@ class State:
         ):
             return
 
-        print("!!!!!!!wat!!!!!")
-        print(line)
+        #TODO: log stranged transitivy
+        ##print("strange transitivy")
+        ##print(line)
 
     def reset(self):
         self.word = None
@@ -388,4 +615,4 @@ i = 0
 for line  in data:
     words = state.consume(line)
     for word in words:
-        print(word)
+        print(word.toCSVLine())
