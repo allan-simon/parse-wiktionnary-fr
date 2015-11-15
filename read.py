@@ -528,7 +528,10 @@ class State:
 
         if not line.startswith("'''"+self.word+"'''"):
             return
-        if "{{conj|grp=" not in line:
+        if (
+            "{{conj|grp=" not in line and
+            "{{conjugaison|fr|groupe=" not in line
+        ):
             if "{{voir-conj|" not in line:
                 return
 
@@ -536,11 +539,11 @@ class State:
             self.information["voir-conj"] = line.split("{{voir-conj|")[1].split("}}")[0]
             return
 
-        if "grp=1" in line:
+        if "grp=1" in line or "groupe=1" in line:
             self.information[GROUP] = "1"
-        if "grp=2" in line:
+        if "grp=2" in line or "groupe=2" in line:
             self.information[GROUP] = "2"
-        if "grp=3" in line:
+        if "grp=3" in line or "groupe=3":
             self.information[GROUP] = "3"
 
 
