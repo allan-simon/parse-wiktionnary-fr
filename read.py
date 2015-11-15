@@ -550,7 +550,7 @@ class State:
             self.information[GROUP] = "1"
         if "grp=2" in line or "groupe=2" in line:
             self.information[GROUP] = "2"
-        if "grp=3" in line or "groupe=3":
+        if "grp=3" in line or "groupe=3" in line:
             self.information[GROUP] = "3"
 
 
@@ -570,7 +570,6 @@ class State:
         self.step = self.lookForType
 
         templates = extract_templates(line)
-        print(templates)
 
         def add_transitivity(newTransitivity):
             if TRANSITIVITY in self.information:
@@ -580,7 +579,6 @@ class State:
         for template in templates:
 
             templateName = template.split("|")[0]
-            print(templateName)
             if templateName in ["t", "transitif"]:
                 add_transitivity("t")
                 continue
