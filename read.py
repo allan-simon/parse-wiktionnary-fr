@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 # coding=utf-8
 from __future__ import print_function
 import copy
@@ -78,6 +78,13 @@ def remove_accents(input_str):
     nkfd_form = unicodedata.normalize('NFKD', input_str)
     return "".join([c for c in nkfd_form if not unicodedata.combining(c)])
 
+def hash_32_bit(input_str):
+    import hashlib
+    return int(
+        hashlib.md5(input_str.encode('utf-8')).hexdigest()[-8:],
+        16
+    )
+
 
 class CompleteWord:
     def __init__(self, lemma, lang, wordType, information):
@@ -101,7 +108,9 @@ class CompleteWord:
         if normalizedLemma == self.lemma:
             normalizedLemma = ""
 
-        return u"%s\t%s\t%d\t%s" % (
+        return u"%d\t%d\t%s\t%s\t%d\t%s" % (
+            hash_32_bit(self.lemma),
+            hash_32_bit(normalizedLemma),
             self.lemma,
             normalizedLemma,
             wordTypesToID[self.wordType],
