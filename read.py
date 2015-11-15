@@ -85,6 +85,13 @@ def hash_32_bit(input_str):
         16
     )
 
+def extract_templates(line):
+    return list(map(
+        # 2nd, until }}
+        lambda s : s.split("}}")[0] ,
+        # 1st: we take all the part starting with }}
+        line.split("{{")[1:]
+    ))
 
 class CompleteWord:
     def __init__(self, lemma, lang, wordType, information):
@@ -562,52 +569,33 @@ class State:
 
         self.step = self.lookForType
 
-        if (
-            "{{t}}" in line or
-            "{{t|nocat}}" in line or
-            "{{t|nocat=1}}" in line or
-            "{{t|nocat=non}}" in line or
-            "{{t|fr}}" in line or
-            "{{transitif|fr}}" in line
-        ):
-            self.information[TRANSITIVITY] = "t"
-            return
+        templates = extract_templates(line)
+        print(templates)
 
-        if (
-            "{{i}}" in line or
-            "{{i|nocat}}" in line or
-            "{{i|nocat=1}}" in line or
-            "{{i|nocat=non}}" in line or
-            "{{i|fr}" in line or
-            "{{intrans|fr}}" in line or
-            "{{intransitif|fr}}" in line
-        ):
-            self.information[TRANSITIVITY] = "i"
-            return
+        def add_transitivity(newTransitivity):
+            if TRANSITIVITY in self.information:
+                self.tryCreateWord()
+            self.information[TRANSITIVITY] = newTransitivity
 
-        if (
-            "{{tr-dir}}" in line or
-            "{{tr-dir|fr}}" in line
-        ):
-            self.information[TRANSITIVITY] = "tr-dir"
-            return
+        for template in templates:
 
-        if (
-            "{{tind|fr}}" in line or
-            "{{tr-indir|nocat=1}}" in line or
-            "{{tr-indir|nocat}}" in line or
-            "{{tr-indir}}" in line or
-            "{{tr-indir|fr}}" in line or
-            "{{tr-ind|fr}}" in line
-        ):
-            self.information[TRANSITIVITY] = "tr-indir"
-            return
+            templateName = template.split("|")[0]
+            print(templateName)
+            if templateName in ["t", "transitif"]:
+                add_transitivity("t")
+                continue
 
-        if (
-            "{{invar}}" in line or
-            "{{tradit}}" in line
-        ):
-            return
+            if templateName in ["i", "intrans", "intransitif"]:
+                add_transitivity("i")
+                continue
+
+            if templateName == "tr-dir":
+                add_transitivity("tr-dir")
+                continue
+
+            if templateName in ["tind", "tr-indir", "tr-ind"]:
+                add_transitivity("tr-indir")
+                continue
 
         #TODO: log stranged transitivy
         ##print("strange transitivy")
