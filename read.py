@@ -350,7 +350,9 @@ class State:
                 #     need to clean in the wiktionnary
                 return
 
-            self.information['inf'] = inside[1];
+            #Note: the infinitive form of a verb in french
+            # is also its lemma form
+            self.information[LEMMA] = inside[1];
 
             for form in inside[2:]:
                 if (
