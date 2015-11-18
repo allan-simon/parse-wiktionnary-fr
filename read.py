@@ -26,6 +26,33 @@ MODE = "m"
 PERSON = "p"
 NUMBER = "n"
 
+UNKNOWN_MODE=0
+PARTICIPE_MODE=1
+INDICATIVE_MODE=2
+IMPERATIVE_MODE=3
+CONDITIONAL_MODE=4
+SUBJUNCTIVE_MODE=5
+
+UKNOWN_TENSE=0
+PRESENT_TENSE=1
+PAST_TENSE=2
+IMPERFECT_TENSE=3
+SIMPLE_PAST_TENSE=4
+FUTURE_TENSE=5
+
+UNKNOWN_NUMBER=0
+SINGULAR_NUMBER=1
+PLURAL_NUMBER=2
+
+UNKNOWN_GENDER=0
+MASCULIN_GENDER=1
+FEMININ_GENDER=2
+
+UNKNOWN_PERSON=0
+FIRST_PERSON=1
+SECOND_PERSON=2
+THIRD_PERSON=3
+
 wordTypesToID = {
     "nom" : 1,
     "nom commun": 2,
@@ -113,11 +140,14 @@ class CompleteWord:
         # no need to waste space by storing two times
         # the same string (reduce size from 214mo to 200)
         if normalizedLemma == self.lemma:
+            hashNormalized = -1
             normalizedLemma = ""
+        else:
+            hashNormalized = hash_32_bit(normalizedLemma)
 
         return u"%d\t%d\t%s\t%s\t%d\t%s" % (
             hash_32_bit(self.lemma),
-            hash_32_bit(normalizedLemma),
+            hashNormalized,
             self.lemma,
             normalizedLemma,
             wordTypesToID[self.wordType],
@@ -296,14 +326,14 @@ class State:
             if "''Pluriel" in line:
                 inside = line.split("[[")[1].split("]]")[0].split("|")
                 self.information[LEMMA] = inside[-1];
-                self.information[FLEXION] = {NUMBER : 'p'}
+                self.information[FLEXION] = {NUMBER : PLURAL_NUMBER}
                 return
             if "''Féminin singulier" in line:
                 inside = line.split("[[")[1].split("]]")[0].split("|")
                 self.information[LEMMA] = inside[-1];
                 self.information[FLEXION] = {
-                    GENDER: 'f',
-                    NUMBER : 's'
+                    GENDER: FEMININ_GENDER,
+                    NUMBER : SINGULAR_NUMBER,
                 }
                 return
 
@@ -311,16 +341,16 @@ class State:
                 inside = line.split("[[")[1].split("]]")[0].split("|")
                 self.information[LEMMA] = inside[-1];
                 self.information[FLEXION] = {
-                    GENDER: 'm',
-                    NUMBER: 'p'
+                    GENDER: MASCULIN_GENDER,
+                    NUMBER: PLURAL_NUMBER,
                 }
                 return
             if "''Féminin pluriel" in line:
                 inside = line.split("[[")[1].split("]]")[0].split("|")
                 self.information[LEMMA] = inside[-1];
                 self.information[FLEXION] = {
-                    GENDER: 'f',
-                    NUMBER: 'p'
+                    GENDER: FEMININ_GENDER,
+                    NUMBER: PLURAL_NUMBER,
                 }
                 return
             if "''Féminin d" in line:
@@ -328,7 +358,7 @@ class State:
                 self.information[LEMMA] = inside[-1];
                 #TODO: check if we can correct witkionnary to put "Feminin singulier"
                 self.information[FLEXION] = {
-                    GENDER: 'f'
+                    GENDER: FEMININ_GENDER,
                 }
                 return
 
@@ -365,40 +395,40 @@ class State:
 
 
                 if form == "pp=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "past"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PAST_TENSE
                     continue
                 if form == "ppf=oui" or form == "ppfs=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "past"
-                    self.information[FLEXION][GENDER] = "f"
-                    self.information[FLEXION][NUMBER] = "s"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PAST_TENSE
+                    self.information[FLEXION][GENDER] = FEMININ_GENDER
+                    self.information[FLEXION][NUMBER] = SINGULAR_NUMBER
                     continue
 
                 if form == "ppfp=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "past"
-                    self.information[FLEXION][GENDER] = "f"
-                    self.information[FLEXION][NUMBER] = "p"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PAST_TENSE
+                    self.information[FLEXION][GENDER] = FEMININ_GENDER
+                    self.information[FLEXION][NUMBER] = PLURAL_NUMBER
                     continue
 
                 if form == "ppms=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "past"
-                    self.information[FLEXION][GENDER] = "m"
-                    self.information[FLEXION][NUMBER] = "s"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PAST_TENSE
+                    self.information[FLEXION][GENDER] = MASCULIN_GENDER
+                    self.information[FLEXION][NUMBER] = SINGULAR_NUMBER
                     continue
 
                 if form == "ppmp=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "past"
-                    self.information[FLEXION][GENDER] = "m"
-                    self.information[FLEXION][NUMBER] = "p"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PAST_TENSE
+                    self.information[FLEXION][GENDER] = MASCULIN_GENDER
+                    self.information[FLEXION][NUMBER] = PLURAL_NUMBER
                     continue
 
                 if form == "ppr=oui":
-                    self.information[FLEXION][MODE] = "participe"
-                    self.information[FLEXION][TENSE] = "present"
+                    self.information[FLEXION][MODE] = PARTICIPE_MODE
+                    self.information[FLEXION][TENSE] = PRESENT_TENSE
                     continue
 
                 if "." in form:
@@ -409,41 +439,41 @@ class State:
                     person = formInfo[2].split('=')[0]
 
                     if mode == 'ind':
-                        self.information[FLEXION][MODE] = 'ind'
+                        self.information[FLEXION][MODE] = INDICATIVE_MODE
                     if mode == 'imp':
-                        self.information[FLEXION][MODE] = 'imp'
+                        self.information[FLEXION][MODE] = IMPERATIVE_MODE
                     if mode == 'cond':
-                        self.information[FLEXION][MODE] = 'cond'
+                        self.information[FLEXION][MODE] = CONDITIONAL_MODE
                     if mode == 'sub':
-                        self.information[FLEXION][MODE] = 'sub'
+                        self.information[FLEXION][MODE] = SUBJUNCTIVE_MODE
 
                     if tense == 'p':
-                        self.information[FLEXION][TENSE] = 'p'
+                        self.information[FLEXION][TENSE] = PRESENT_TENSE
                     if tense == 'i':
-                        self.information[FLEXION][TENSE] = 'i'
+                        self.information[FLEXION][TENSE] = IMPERFECT_TENSE
                     if tense == 'ps':
-                        self.information[FLEXION][TENSE] = 'ps'
+                        self.information[FLEXION][TENSE] = SIMPLE_PAST_TENSE
                     if tense == 'f':
-                        self.information[FLEXION][TENSE] = 'f'
+                        self.information[FLEXION][TENSE] = FUTURE_TENSE
 
                     if person == "1s":
-                        self.information[FLEXION][PERSON] = '1'
-                        self.information[FLEXION][NUMBER] = 's'
+                        self.information[FLEXION][PERSON] = FIRST_PERSON
+                        self.information[FLEXION][NUMBER] = SINGULAR_NUMBER
                     if person == "2s":
-                        self.information[FLEXION][PERSON] = '2'
-                        self.information[FLEXION][NUMBER] = 's'
+                        self.information[FLEXION][PERSON] = FIRST_PERSON
+                        self.information[FLEXION][NUMBER] = SINGULAR_NUMBER
                     if person == "3s":
-                        self.information[FLEXION][PERSON] = '3'
-                        self.information[FLEXION][NUMBER] = 's'
+                        self.information[FLEXION][PERSON] = THIRD_PERSON
+                        self.information[FLEXION][NUMBER] = SINGULAR_NUMBER
                     if person == "1p":
-                        self.information[FLEXION][PERSON] = '1'
-                        self.information[FLEXION][NUMBER] = 'p'
+                        self.information[FLEXION][PERSON] = FIRST_PERSON
+                        self.information[FLEXION][NUMBER] = PLURAL_NUMBER
                     if person == "2p":
-                        self.information[FLEXION][PERSON] = '2'
-                        self.information[FLEXION][NUMBER] = 'p'
+                        self.information[FLEXION][PERSON] = SECOND_PERSON
+                        self.information[FLEXION][NUMBER] = PLURAL_NUMBER
                     if person == "3p":
-                        self.information[FLEXION][PERSON] = '3'
-                        self.information[FLEXION][NUMBER] = 'p'
+                        self.information[FLEXION][PERSON] = THIRD_PERSON
+                        self.information[FLEXION][NUMBER] = PLURAL_NUMBER
 
                 if form == "'=oui":
                     #TODO we ignore elision
